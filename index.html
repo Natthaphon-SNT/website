@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E.need pc - จัดสเปคคอม</title>
+    <title>E.need pc - ระบบจัดสเปคคอมพิวเตอร์</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
-        body { font-family: 'Kanit', sans-serif; background-color: #020617; color: white; margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #020617; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -19,66 +24,169 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // ข้อมูลสินค้าแบบย่อ (เน้นให้รันได้ก่อน)
+        // --- Safe Icon Component ---
+        const LucideIcon = ({ name, className = "w-5 h-5" }) => {
+            const IconComponent = typeof lucide !== 'undefined' ? lucide[name] : null;
+            if (!IconComponent) return <div className={`${className} bg-slate-700 animate-pulse rounded`}></div>;
+            return <IconComponent className={className} />;
+        };
+
+        // --- Data Specs ---
+        const CATEGORIES = [
+            { id: 'cpu', name: 'CPU', icon: 'Cpu' },
+            { id: 'motherboard', name: 'Mainboard', icon: 'CircuitBoard' },
+            { id: 'gpu', name: 'VGA', icon: 'Monitor' },
+            { id: 'ram', name: 'RAM', icon: 'Server' },
+            { id: 'storage', name: 'Storage', icon: 'HardDrive' },
+            { id: 'psu', name: 'Power Supply', icon: 'Zap' },
+            { id: 'case', name: 'Case', icon: 'Box' },
+            { id: 'cooler', name: 'Cooling', icon: 'Fan' },
+        ];
+
         const PRODUCTS = {
             cpu: [
-                { id: 'c1', name: 'Intel i9-14900K', price: 24500 },
-                { id: 'c2', name: 'AMD Ryzen 9 7950X', price: 26900 }
+                { id: 'c1', name: 'Intel Core i9-14900K', price: 24500, detail: 'LGA1700, 24C/32T', socket: 'LGA1700', power: 253 },
+                { id: 'c2', name: 'Intel Core i5-14600K', price: 12900, detail: 'LGA1700, 14C/20T', socket: 'LGA1700', power: 181 },
+                { id: 'c3', name: 'AMD Ryzen 9 7950X3D', price: 26900, detail: 'AM5, 16C/32T', socket: 'AM5', power: 120 },
+            ],
+            motherboard: [
+                { id: 'm1', name: 'ASUS ROG MAXIMUS Z790', price: 22900, detail: 'LGA1700, DDR5', socket: 'LGA1700', ramType: 'DDR5' },
+                { id: 'm3', name: 'GIGABYTE X670E AORUS', price: 18500, detail: 'AM5, DDR5', socket: 'AM5', ramType: 'DDR5' },
             ],
             gpu: [
-                { id: 'g1', name: 'RTX 4090 24GB', price: 72000 },
-                { id: 'g2', name: 'RTX 4070 Ti', price: 32500 }
-            ]
+                { id: 'g1', name: 'NVIDIA RTX 4090 24GB', price: 72000, detail: '24GB GDDR6X', power: 450 },
+                { id: 'g2', name: 'NVIDIA RTX 4070 Ti 12GB', price: 32500, detail: '12GB GDDR6X', power: 285 },
+            ],
+            ram: [
+                { id: 'r1', name: 'Corsair Vengeance 32GB', price: 5900, detail: 'DDR5 6000MHz', type: 'DDR5' },
+                { id: 'r3', name: 'Kingston Fury 16GB', price: 2500, detail: 'DDR4 3200MHz', type: 'DDR4' },
+            ],
+            psu: [
+                { id: 'p1', name: 'Corsair RM850e 850W', price: 4790, detail: '80+ Gold', watts: 850 },
+                { id: 'p2', name: 'Thermaltake 1000W', price: 6590, detail: '80+ Gold', watts: 1000 },
+            ],
+            storage: [{ id: 's1', name: 'Samsung 990 PRO 1TB', price: 4590, detail: 'NVMe Gen4', power: 10 }],
+            case: [{ id: 'ca1', name: 'NZXT H9 Flow', price: 5990, detail: 'Dual Chamber' }],
+            cooler: [{ id: 'co1', name: 'Kraken Elite 360', price: 9900, detail: 'AIO Liquid', power: 15 }]
         };
 
         function App() {
-            const [selected, setSelected] = useState({});
-            const [tab, setTab] = useState('cpu');
+            const [selectedParts, setSelectedParts] = useState({});
+            const [activeCategory, setActiveCategory] = useState('cpu');
+            const [totalPrice, setTotalPrice] = useState(0);
+            const [watts, setWatts] = useState(0);
+            const [issues, setIssues] = useState([]);
 
-            const total = Object.values(selected).reduce((s, p) => s + p.price, 0);
+            useEffect(() => {
+                let t = 0; let w = 60; // base power
+                Object.values(selectedParts).forEach(p => {
+                    t += p.price;
+                    if (p.power) w += p.power;
+                });
+                setTotalPrice(t);
+                setWatts(w);
+
+                // Compatibility Check
+                const newIssues = [];
+                const { cpu, motherboard, ram, psu } = selectedParts;
+                if (cpu && motherboard && cpu.socket !== motherboard.socket) 
+                    newIssues.push(`Socket mismatch: ${cpu.socket} vs ${motherboard.socket}`);
+                if (ram && motherboard && ram.type !== motherboard.ramType)
+                    newIssues.push(`RAM mismatch: ${ram.type} vs ${motherboard.ramType}`);
+                if (psu && psu.watts < w)
+                    newIssues.push(`PSU Warning: ${psu.watts}W is too low for ${w}W load!`);
+                setIssues(newIssues);
+            }, [selectedParts]);
 
             return (
-                <div className="min-h-screen p-4 md:p-10">
-                    <header className="mb-10">
-                        <h1 className="text-4xl font-bold text-cyan-400">E.need pc</h1>
-                        <p className="text-slate-400">เลือกสเปคคอมพิวเตอร์ของคุณ</p>
+                <div className="min-h-screen text-slate-200 p-4 md:p-8">
+                    <header className="max-w-7xl mx-auto flex justify-between items-center mb-8">
+                        <div className="flex items-center gap-3">
+                            <LucideIcon name="Monitor" className="w-8 h-8 text-cyan-400" />
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">E.need pc</h1>
+                        </div>
+                        <div className="bg-slate-800 px-4 py-2 rounded-full border border-slate-700 flex items-center gap-2">
+                            <LucideIcon name="Zap" className="w-4 h-4 text-yellow-400" />
+                            <span className="text-sm font-bold">{watts}W</span>
+                        </div>
                     </header>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* ส่วนเลือกหมวดหมู่ */}
-                        <div className="space-y-4">
-                            {['cpu', 'gpu'].map(cat => (
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Categories */}
+                        <div className="space-y-2">
+                            {CATEGORIES.map(cat => (
                                 <button 
-                                    key={cat}
-                                    onClick={() => setTab(cat)}
-                                    className={`w-full p-4 rounded-xl text-left border ${tab === cat ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-700 bg-slate-800'}`}
+                                    key={cat.id}
+                                    onClick={() => setActiveCategory(cat.id)}
+                                    className={`w-full flex items-center p-4 rounded-xl border transition-all ${activeCategory === cat.id ? 'bg-cyan-600/20 border-cyan-500 text-white shadow-lg shadow-cyan-900/20' : 'bg-slate-900/50 border-slate-800 text-slate-500 hover:border-slate-700'}`}
                                 >
-                                    {cat.toUpperCase()} {selected[cat] ? '✅' : ''}
+                                    <LucideIcon name={cat.icon} className="mr-3" />
+                                    <span className="font-medium">{cat.name}</span>
+                                    {selectedParts[cat.id] && <LucideIcon name="CheckCircle" className="ml-auto w-4 h-4 text-green-500" />}
                                 </button>
                             ))}
                         </div>
 
-                        {/* รายการสินค้า */}
-                        <div className="space-y-4">
-                            {PRODUCTS[tab].map(p => (
-                                <div 
-                                    key={p.id}
-                                    onClick={() => setSelected({...selected, [tab]: p})}
-                                    className={`p-4 rounded-xl border cursor-pointer ${selected[tab]?.id === p.id ? 'border-green-500 bg-green-500/10' : 'border-slate-700 bg-slate-900'}`}
-                                >
-                                    <div className="flex justify-between font-bold">
-                                        <span>{p.name}</span>
-                                        <span className="text-cyan-400">฿{p.price.toLocaleString()}</span>
+                        {/* Product List */}
+                        <div className="lg:col-span-2 space-y-4">
+                            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <LucideIcon name="LayoutGrid" className="text-cyan-400" />
+                                เลือก {CATEGORIES.find(c => c.id === activeCategory).name}
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {PRODUCTS[activeCategory]?.map(p => (
+                                    <div 
+                                        key={p.id}
+                                        onClick={() => setSelectedParts({...selectedParts, [activeCategory]: p})}
+                                        className={`p-5 rounded-2xl border cursor-pointer transition-all ${selectedParts[activeCategory]?.id === p.id ? 'bg-slate-800 border-cyan-500 ring-1 ring-cyan-500' : 'bg-slate-900 border-slate-800 hover:bg-slate-800'}`}
+                                    >
+                                        <div className="flex justify-between font-bold text-lg text-white">
+                                            <span>{p.name}</span>
+                                        </div>
+                                        <p className="text-slate-500 text-sm mt-1">{p.detail}</p>
+                                        <div className="mt-4 text-cyan-400 font-bold text-xl">฿{p.price.toLocaleString()}</div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
 
-                        {/* สรุปผล */}
-                        <div className="p-6 rounded-2xl bg-slate-800 border border-slate-700 h-fit">
-                            <h2 className="text-xl font-bold mb-4">สรุปรายการ</h2>
-                            <div className="text-3xl font-bold text-green-400">฿{total.toLocaleString()}</div>
-                            <button className="w-full mt-6 py-3 bg-cyan-600 rounded-lg font-bold">สั่งซื้อทันที</button>
+                        {/* Order Summary */}
+                        <div className="space-y-6">
+                            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 sticky top-8">
+                                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                    <LucideIcon name="ShoppingCart" className="text-purple-400" />
+                                    สรุปรายการ
+                                </h2>
+                                
+                                {issues.length > 0 && (
+                                    <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl mb-6 animate-pulse">
+                                        {issues.map((msg, i) => <p key={i} className="text-red-400 text-xs flex items-center gap-1"><LucideIcon name="AlertTriangle" className="w-3 h-3"/> {msg}</p>)}
+                                    </div>
+                                )}
+
+                                <div className="space-y-3 mb-8 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                                    {CATEGORIES.map(cat => (
+                                        <div key={cat.id} className="flex justify-between text-sm">
+                                            <span className="text-slate-500">{cat.name}</span>
+                                            <span className="text-slate-300 truncate ml-4 w-32 text-right">
+                                                {selectedParts[cat.id]?.name || '-'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="border-t border-slate-800 pt-6">
+                                    <p className="text-slate-500 text-sm">ยอดชำระสุทธิ</p>
+                                    <div className="text-4xl font-bold text-white mt-1">฿{totalPrice.toLocaleString()}</div>
+                                </div>
+
+                                <button 
+                                    disabled={totalPrice === 0}
+                                    className="w-full mt-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-2xl font-bold shadow-lg shadow-cyan-900/20 transition-all active:scale-95 disabled:opacity-30"
+                                >
+                                    สั่งซื้อสินค้า
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
