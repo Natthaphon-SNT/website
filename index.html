@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E.need pc - จัดสเปคคอม</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #020617; color: white; margin: 0; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ข้อมูลสินค้าแบบย่อ (เน้นให้รันได้ก่อน)
+        const PRODUCTS = {
+            cpu: [
+                { id: 'c1', name: 'Intel i9-14900K', price: 24500 },
+                { id: 'c2', name: 'AMD Ryzen 9 7950X', price: 26900 }
+            ],
+            gpu: [
+                { id: 'g1', name: 'RTX 4090 24GB', price: 72000 },
+                { id: 'g2', name: 'RTX 4070 Ti', price: 32500 }
+            ]
+        };
+
+        function App() {
+            const [selected, setSelected] = useState({});
+            const [tab, setTab] = useState('cpu');
+
+            const total = Object.values(selected).reduce((s, p) => s + p.price, 0);
+
+            return (
+                <div className="min-h-screen p-4 md:p-10">
+                    <header className="mb-10">
+                        <h1 className="text-4xl font-bold text-cyan-400">E.need pc</h1>
+                        <p className="text-slate-400">เลือกสเปคคอมพิวเตอร์ของคุณ</p>
+                    </header>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* ส่วนเลือกหมวดหมู่ */}
+                        <div className="space-y-4">
+                            {['cpu', 'gpu'].map(cat => (
+                                <button 
+                                    key={cat}
+                                    onClick={() => setTab(cat)}
+                                    className={`w-full p-4 rounded-xl text-left border ${tab === cat ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-700 bg-slate-800'}`}
+                                >
+                                    {cat.toUpperCase()} {selected[cat] ? '✅' : ''}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* รายการสินค้า */}
+                        <div className="space-y-4">
+                            {PRODUCTS[tab].map(p => (
+                                <div 
+                                    key={p.id}
+                                    onClick={() => setSelected({...selected, [tab]: p})}
+                                    className={`p-4 rounded-xl border cursor-pointer ${selected[tab]?.id === p.id ? 'border-green-500 bg-green-500/10' : 'border-slate-700 bg-slate-900'}`}
+                                >
+                                    <div className="flex justify-between font-bold">
+                                        <span>{p.name}</span>
+                                        <span className="text-cyan-400">฿{p.price.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* สรุปผล */}
+                        <div className="p-6 rounded-2xl bg-slate-800 border border-slate-700 h-fit">
+                            <h2 className="text-xl font-bold mb-4">สรุปรายการ</h2>
+                            <div className="text-3xl font-bold text-green-400">฿{total.toLocaleString()}</div>
+                            <button className="w-full mt-6 py-3 bg-cyan-600 rounded-lg font-bold">สั่งซื้อทันที</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
